@@ -1,0 +1,121 @@
+---
+title: "TP3"
+output: html_notebook
+---
+
+
+```{r}
+data <- read.table('../tp3_a18_clas_app.txt')
+nrow(data)
+sum(data[,-1]==1) / nrow(data)
+sum(data[,-1]==2) / nrow(data)
+```
+
+
+
+```{r}
+#découpage aléatoire des données entrainement/test (pas stratifié par rapport à y)
+ratio_training <- 2/3
+train <- sample(1:nrow(data), floor(nrow(data)*ratio_training))
+data_train <- data[train,]
+data_train
+```
+
+
+```{r}
+require(MASS)
+error <- function(y_true, y_pred){
+  return(sum(y_true==y_pred)/length(y_true))
+}
+#test
+y_true <- c(1,2,3,2)
+y_pred <- c(2,1,4,2)
+error(y_true, y_pred)
+```
+
+```{r}
+#Analyse discriminante linéaire
+```
+
+```{r}
+#fonction réalisant 10 évaluations croisées avec K=10 (pour api similaire à lda)
+CV_eval <- function(model, data){
+  K <- 10
+  n <- nrow(data)
+  folds <- sample(1:K,n,replace=TRUE)
+  CV <- 0
+  for(k in (1:K)){
+    model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
+    pred <- predict(model.fit, data[folds==k,])
+    CV <- CV+sum(data$y[folds==k]!=pred$class)
+  }
+  CV <- CV/n
+  return(CV)
+}
+```
+
+```{r}
+#fonction réalisant 10 évaluations croisées avec K=10 (pour naiveBayes)
+CV_eval_naiveBayes <- function(model, data){
+  K <- 10
+  n <- nrow(data)
+  folds <- sample(1:K,n,replace=TRUE)
+  CV <- 0
+  for(k in (1:K)){
+    model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
+    pred <- predict(model.fit, data[folds==k,])
+    CV <- CV+sum(data$y[folds==k]!=pred)
+  }
+  CV <- CV/n
+  return(CV)
+}
+```
+
+```{r}
+#validation croisée sur l'ensemble d'entrainement
+CV_eval(lda, data_train) # 30% d'erreur
+CV_eval(qda, data_train) # 40% d'erreur
+library(e1071)
+CV_eval_naiveBayes(naiveBayes, data_train) # 15% d'erreur
+```
+```{r}
+#essayer Regularized discriminant analysis
+```
+
+```{r}
+#Régression logistique
+```
+
+```{r}
+#fonction réalisant 10 évaluations croisées avec K=10 (pour régression logistique)
+CV_eval_glm <- function(model, data){
+  K <- 10
+  n <- nrow(data)
+  folds <- sample(1:K,n,replace=TRUE)
+  CV <- 0
+  for(k in (1:K)){
+    glm.fit <- glm(y~., data=data[folds!=k,], family=binomial)
+    pred <- predict(glm.fit, newdata=data[folds==k,], type='response')>0.5
+    CV <- CV+sum(data$y[folds==k]!=pred)
+  }
+  CV <- CV/n
+  return(CV)
+}
+```
+
+```{r}
+#validation croisée sur l'ensemble d'entrainement avec une régression logistique
+data_train_glm <- data_train
+data_train_glm$y <- data_train_glm$y - 1
+CV_eval_glm(glm, data_train_glm)  # 30% d'erreur
+```
+
+
+```{r}
+#ROC
+```
+
+
+```{r}
+#ROC
+```
