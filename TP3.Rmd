@@ -74,6 +74,7 @@ CV_eval_naiveBayes <- function(model, data){
 
 ```{r}
 require(MASS)
+set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
 res <- data.frame("Erreur"=rep(0,3), "Ecart type"=rep(0,3))
 row.names(res) <- c("ADL", "ADQ", "Bayésien naif")
@@ -89,15 +90,17 @@ knitr::kable(res)
 ```
 
 ## Analyse discriminante régularisée
+Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
+
 ```{r}
-#essayer Regularized discriminant analysis
+require(klaR)
+set.seed(123)
+model <- rda(formula=as.factor(y)~., data=data_train, crossval=TRUE, fold=10)
+model$regularization
+model$error.rate[2]
 ```
 
 ## Régression logistique
-
-```{r}
-#Régression logistique
-```
 
 ```{r}
 #fonction réalisant 10 évaluations croisées avec K=10 (pour régression logistique)
@@ -105,29 +108,33 @@ CV_eval_glm <- function(model, data){
   K <- 10
   n <- nrow(data)
   folds <- sample(1:K,n,replace=TRUE)
-  CV <- 0
+  mean <- 0
+  errors <- rep(0, K)
   for(k in (1:K)){
-    glm.fit <- glm(y~., data=data[folds!=k,], family=binomial)
+    glm.fit <- glm(as.factor(y)~., data=data[folds!=k,], family=binomial)
     pred <- predict(glm.fit, newdata=data[folds==k,], type='response')>0.5
-    CV <- CV+sum(data$y[folds==k]!=pred)
+    errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
+    mean <- mean + (errors[k]*length(pred))
   }
-  CV <- CV/n
-  return(CV)
+  mean <- mean/n
+  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
+  return(c(mean, sd))
 }
 ```
 
 ```{r}
+set.seed(123)
 #validation croisée sur l'ensemble d'entrainement avec une régression logistique
 data_train_glm <- data_train
 data_train_glm$y <- data_train_glm$y - 1
-CV_eval_glm(glm, data_train_glm)  # 30% d'erreur
+res <- data.frame("Erreur"=0, "Ecart type"=0)
+row.names(res) <- "Regression logistique"
+
+res[1,] <- suppressWarnings(CV_eval_glm(glm, data_train_glm))
 ```
-
-
-```{r}
-#ROC
+```{r, echo=FALSE}
+knitr::kable(res)
 ```
-
 
 ```{r}
 #ROC
