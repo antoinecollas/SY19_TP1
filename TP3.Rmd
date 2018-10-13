@@ -28,24 +28,27 @@ data_test <- data[-train,]
 ```
 
 ##Méthode d'évaluation
-Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous choisissons notre modèle comme étant celui minimisant l'erreur évaluée sur l'ensemble d'entrainement par validation croisée. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
+Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous calculons l'erreur moyenne et l'écart type. Nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
 
 ##Analyse discriminante (linéaire, quadratique et classifieur bayésien naïf).
-
+Nous implémentons deux fonctions qui calculent l'erreur de classification et l'écart type par validation croisée pour les analyses linéaire, quadratique et le classifieur bayésien naïf.
 ```{r}
 #fonction réalisant la validation croisée avec K=10 (pour api similaire à lda)
 CV_eval <- function(model, data){
   K <- 10
   n <- nrow(data)
   folds <- sample(1:K,n,replace=TRUE)
-  CV <- 0
+  mean <- 0
+  errors <- rep(0, K)
   for(k in (1:K)){
     model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
     pred <- predict(model.fit, data[folds==k,])
-    CV <- CV+sum(data$y[folds==k]!=pred$class)
+    errors[k] <- sum(data$y[folds==k]!=pred$class) / length(pred$class)
+    mean <- mean + (errors[k]*length(pred$class))
   }
-  CV <- CV/n
-  return(CV)
+  mean <- mean/n
+  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
+  return(c(mean, sd))
 }
 ```
 
@@ -55,28 +58,42 @@ CV_eval_naiveBayes <- function(model, data){
   K <- 10
   n <- nrow(data)
   folds <- sample(1:K,n,replace=TRUE)
-  CV <- 0
+  mean <- 0
+  errors <- rep(0, K)
   for(k in (1:K)){
     model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
     pred <- predict(model.fit, data[folds==k,])
-    CV <- CV+sum(data$y[folds==k]!=pred)
+    errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
+    mean <- mean + (errors[k]*length(pred))
   }
-  CV <- CV/n
-  return(CV)
+  mean <- mean/n
+  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
+  return(c(mean, sd))
 }
 ```
 
 ```{r}
 require(MASS)
 #validation croisée sur l'ensemble d'entrainement
-CV_eval(lda, data_train) # 30% d'erreur
-CV_eval(qda, data_train) # 40% d'erreur
+res <- data.frame("Erreur"=rep(0,3), "Ecart type"=rep(0,3))
+row.names(res) <- c("ADL", "ADQ", "Bayésien naif")
+res[1,] <- CV_eval(lda, data_train)
+res[2,] <- CV_eval(qda, data_train)
 library(e1071)
-CV_eval_naiveBayes(naiveBayes, data_train) # 15% d'erreur
+res[3,] <- CV_eval_naiveBayes(naiveBayes, data_train)
 ```
+Nous obtenons les erreurs suivantes:
+
+```{r, echo=FALSE}
+knitr::kable(res)
+```
+
+## Analyse discriminante régularisée
 ```{r}
 #essayer Regularized discriminant analysis
 ```
+
+## Régression logistique
 
 ```{r}
 #Régression logistique
