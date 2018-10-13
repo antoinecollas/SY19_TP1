@@ -1,8 +1,13 @@
 ---
 title: "TP3"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
+#Problème de classification
+##Chargement des données
+Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des données appratiennent à la classe 1. 57% appartiennent à la classe 2.
 
 ```{r}
 data <- read.table('../tp3_a18_clas_app.txt')
@@ -12,33 +17,23 @@ sum(data[,-1]==2) / nrow(data)
 ```
 
 
+Ensuite nous découpons l'ensemble des données en 2 ensembles: un pour l'entrainement et un pour le test.  Nous répartissons les données entre les 2 ensembles de manière aléatoire afin que nos 2 ensembles aient les mêmes proportions des étiquettes que dans l'ensemble initial. Nous fixons le générateur de nombres aléatoires afin de conserver le même ensemble de test au cours des différentes executions de ce notebook.
 
 ```{r}
-#découpage aléatoire des données entrainement/test (pas stratifié par rapport à y)
-ratio_training <- 2/3
+set.seed(123)
+ratio_training <- 3/4
 train <- sample(1:nrow(data), floor(nrow(data)*ratio_training))
 data_train <- data[train,]
-data_train
+data_test <- data[-train,]
 ```
 
+##Méthode d'évaluation
+Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous choisissons notre modèle comme étant celui minimisant l'erreur évaluée sur l'ensemble d'entrainement par validation croisée. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
+
+##Analyse discriminante (linéaire, quadratique et classifieur bayésien naïf).
 
 ```{r}
-require(MASS)
-error <- function(y_true, y_pred){
-  return(sum(y_true==y_pred)/length(y_true))
-}
-#test
-y_true <- c(1,2,3,2)
-y_pred <- c(2,1,4,2)
-error(y_true, y_pred)
-```
-
-```{r}
-#Analyse discriminante linéaire
-```
-
-```{r}
-#fonction réalisant 10 évaluations croisées avec K=10 (pour api similaire à lda)
+#fonction réalisant la validation croisée avec K=10 (pour api similaire à lda)
 CV_eval <- function(model, data){
   K <- 10
   n <- nrow(data)
@@ -72,6 +67,7 @@ CV_eval_naiveBayes <- function(model, data){
 ```
 
 ```{r}
+require(MASS)
 #validation croisée sur l'ensemble d'entrainement
 CV_eval(lda, data_train) # 30% d'erreur
 CV_eval(qda, data_train) # 40% d'erreur
