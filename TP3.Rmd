@@ -101,7 +101,7 @@ model$error.rate[2]
 ```
 
 ## Régression logistique
-
+Nous testons la régression logistique bien que ce modèle soit similaire à l'analyse discriminante linéaire (qui ne diffère que par l'évaluation des poids).
 ```{r}
 #fonction réalisant 10 évaluations croisées avec K=10 (pour régression logistique)
 CV_eval_glm <- function(model, data){
@@ -129,9 +129,9 @@ data_train_glm <- data_train
 data_train_glm$y <- data_train_glm$y - 1
 res <- data.frame("Erreur"=0, "Ecart type"=0)
 row.names(res) <- "Regression logistique"
-
 res[1,] <- suppressWarnings(CV_eval_glm(glm, data_train_glm))
 ```
+Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
