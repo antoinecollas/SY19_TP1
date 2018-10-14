@@ -7,13 +7,13 @@ output:
 
 #Problème de classification
 ##Chargement des données
-Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des données appratiennent à la classe 1. 57% appartiennent à la classe 2.
+Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des individus appratiennent à la classe 1. 57% appartiennent à la classe 2. Ce jeu de données contient 200 individus, chacun est décrit par 36 variables.
 
 ```{r}
-data <- read.table('../tp3_a18_clas_app.txt')
-nrow(data)
-sum(data[,-1]==1) / nrow(data)
-sum(data[,-1]==2) / nrow(data)
+full_data <- read.table('../tp3_a18_clas_app.txt')
+nrow(full_data)
+sum(full_data[,-1]==1) / nrow(full_data)
+sum(full_data[,-1]==2) / nrow(full_data)
 ```
 
 
@@ -22,9 +22,9 @@ Ensuite nous découpons l'ensemble des données en 2 ensembles: un pour l'entrai
 ```{r}
 set.seed(123)
 ratio_training <- 3/4
-train <- sample(1:nrow(data), floor(nrow(data)*ratio_training))
-data_train <- data[train,]
-data_test <- data[-train,]
+train <- sample(1:nrow(full_data), floor(nrow(full_data)*ratio_training))
+data_train <- full_data[train,]
+data_test <- full_data[-train,]
 ```
 
 ##Méthode d'évaluation
@@ -135,7 +135,41 @@ Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
+```{r}
+#Extraction des prédicteurs intéressants (Factor discriminant analysis, PCA, corrélations, corrélations fournies pas la régression logistique, ...)
+```
 
 ```{r}
-#ROC
+#ROC des différents modèles
+#matrice de confusion du meilleur modèle
+```
+
+# Problème de régression
+## Chargement des données
+Nous commençons par charger les données du problème de régression. Ce problème contient 200 individus (comme le problème de classification). Chaque individu est decrit par 50 variables quantitatives. La variable nommée "y" est la variable à prédire.
+
+```{r}
+rm(list=ls())
+full_data <- read.table('../tp3_a18_reg_app.txt')
+nrow(full_data)
+```
+
+
+Ensuite nous découpons l'ensemble des données en 2 ensembles: un pour l'entrainement et un pour le test. Nous fixons le générateur de nombres aléatoires afin de conserver le même ensemble de test au cours des différentes executions de ce notebook.
+
+```{r}
+set.seed(123)
+ratio_training <- 3/4
+train <- sample(1:nrow(full_data), floor(nrow(full_data)*ratio_training))
+data_train <- full_data[train,]
+data_test <- full_data[-train,]
+```
+
+## Méthode d'évaluation
+Pour ce problème l'erreur de régression est définie par l'espérance de l'erreur quadratique. Nous estimons cette erreur et son écart type pour chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Ensuite, nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. 
+
+## Régression linéaire
+Nous commençons par appliquer une régression linéaire sur toutes les variables.
+```{r}
+reg <- lm(formula = y~., data=data_train)
 ```
