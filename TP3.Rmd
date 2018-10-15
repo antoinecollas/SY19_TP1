@@ -30,58 +30,22 @@ data_test <- full_data[-train,]
 ##Méthode d'évaluation
 Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous calculons l'erreur moyenne et l'écart type. Nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
 
+##Validation croisée
+Nous avons implémenté une fonction qui calcule l'erreur de classification et l'écart type par validation croisée pour l'ensemble des modèles que nous utiliserons par la suite.
+```{r}
+source('CV.R')
+```
+
 ##Analyse discriminante (linéaire, quadratique et classifieur bayésien naïf).
-Nous implémentons deux fonctions qui calculent l'erreur de classification et l'écart type par validation croisée pour les analyses linéaire, quadratique et le classifieur bayésien naïf.
+Nous commençons par utiliser les analyses discriminantes linéaire et quadratique ainsi que le classifieur bayésien naif.
 ```{r}
-#fonction réalisant la validation croisée avec K=10 (pour api similaire à lda)
-CV_eval <- function(model, data){
-  K <- 10
-  n <- nrow(data)
-  folds <- sample(1:K,n,replace=TRUE)
-  mean <- 0
-  errors <- rep(0, K)
-  for(k in (1:K)){
-    model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
-    pred <- predict(model.fit, data[folds==k,])
-    errors[k] <- sum(data$y[folds==k]!=pred$class) / length(pred$class)
-    mean <- mean + (errors[k]*length(pred$class))
-  }
-  mean <- mean/n
-  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
-  return(c(mean, sd))
-}
-```
-
-```{r}
-#fonction réalisant 10 évaluations croisées avec K=10 (pour naiveBayes)
-CV_eval_naiveBayes <- function(model, data){
-  K <- 10
-  n <- nrow(data)
-  folds <- sample(1:K,n,replace=TRUE)
-  mean <- 0
-  errors <- rep(0, K)
-  for(k in (1:K)){
-    model.fit <- model(formula=as.factor(y)~., data=data[folds!=k,])
-    pred <- predict(model.fit, data[folds==k,])
-    errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
-    mean <- mean + (errors[k]*length(pred))
-  }
-  mean <- mean/n
-  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
-  return(c(mean, sd))
-}
-```
-
-```{r}
-require(MASS)
 set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
 res <- data.frame("Erreur"=rep(0,3), "Ecart type"=rep(0,3))
 row.names(res) <- c("ADL", "ADQ", "Bayésien naif")
-res[1,] <- CV_eval(lda, data_train)
-res[2,] <- CV_eval(qda, data_train)
-library(e1071)
-res[3,] <- CV_eval_naiveBayes(naiveBayes, data_train)
+res[1,] <- CV_eval('adl', data_train) #analyse discriminantes linéaire
+res[2,] <- CV_eval('adq', data_train) #analyse discriminantes quadratique
+res[3,] <- CV_eval('bayesien_naif', data_train)
 ```
 Nous obtenons les erreurs suivantes:
 
@@ -90,7 +54,7 @@ knitr::kable(res)
 ```
 
 ## Analyse discriminante régularisée
-Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
+Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation du package **klaR** cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
 
 ```{r}
 require(klaR)
@@ -102,25 +66,6 @@ model$error.rate[2]
 
 ## Régression logistique
 Nous testons la régression logistique bien que ce modèle soit similaire à l'analyse discriminante linéaire (qui ne diffère que par l'évaluation des poids).
-```{r}
-#fonction réalisant 10 évaluations croisées avec K=10 (pour régression logistique)
-CV_eval_glm <- function(model, data){
-  K <- 10
-  n <- nrow(data)
-  folds <- sample(1:K,n,replace=TRUE)
-  mean <- 0
-  errors <- rep(0, K)
-  for(k in (1:K)){
-    glm.fit <- glm(as.factor(y)~., data=data[folds!=k,], family=binomial)
-    pred <- predict(glm.fit, newdata=data[folds==k,], type='response')>0.5
-    errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
-    mean <- mean + (errors[k]*length(pred))
-  }
-  mean <- mean/n
-  sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
-  return(c(mean, sd))
-}
-```
 
 ```{r}
 set.seed(123)
@@ -129,7 +74,7 @@ data_train_glm <- data_train
 data_train_glm$y <- data_train_glm$y - 1
 res <- data.frame("Erreur"=0, "Ecart type"=0)
 row.names(res) <- "Regression logistique"
-res[1,] <- suppressWarnings(CV_eval_glm(glm, data_train_glm))
+res[1,] <- suppressWarnings(CV_eval('reg_logistique', data_train_glm))
 ```
 Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
@@ -169,7 +114,23 @@ data_test <- full_data[-train,]
 Pour ce problème l'erreur de régression est définie par l'espérance de l'erreur quadratique. Nous estimons cette erreur et son écart type pour chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Ensuite, nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. 
 
 ## Régression linéaire
-Nous commençons par appliquer une régression linéaire sur toutes les variables.
+Nous commençons par vérifier les hypothèses de normalité et d'homoscédasticité. 
 ```{r}
 reg <- lm(formula = y~., data=data_train)
+```
+
+appliquer une régression linéaire sur toutes les variables.
+
+```{r}
+source('CV.R')
+set.seed(123)
+#validation croisée sur l'ensemble d'entrainement
+res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
+row.names(res) <- c("Régression linéaire")
+#res[1,] <- CV_eval(lm, data_train)
+```
+Nous obtenons l'erreur suivante:
+
+```{r, echo=FALSE}
+knitr::kable(res)
 ```
