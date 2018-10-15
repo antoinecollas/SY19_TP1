@@ -114,23 +114,60 @@ data_test <- full_data[-train,]
 Pour ce problème l'erreur de régression est définie par l'espérance de l'erreur quadratique. Nous estimons cette erreur et son écart type pour chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Ensuite, nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. 
 
 ## Régression linéaire
-Nous commençons par vérifier les hypothèses de normalité et d'homoscédasticité. 
 ```{r}
 reg <- lm(formula = y~., data=data_train)
+res <- resid(reg)
 ```
 
-appliquer une régression linéaire sur toutes les variables.
+### Analyse des résidus
+Nous commençons par vérifier les hypothèses sur les résidus de la régression linéaire sur l'ensemble d'entrainement. Tout d'abord nous testons la normalité des résidus à l'aide d'un test de Shapiro sur les résidus.
+```{r}
+shapiro.test(res)
+```
+La p-value obtenue est très élevée, 0.824, les résidus sont donc probablement gaussiens.
+Nous pouvons confirmer ce résultat à l'aide d'un diagramme Q-Q des quantiles des résidus standardisés par rapport à ceux d'une loi normale.
+```{r}
+plot(reg, which=2)
+```
+
+La quasi totalité des points sont situés sur la première diagonale, ce qui confirme que les résidus sont gaussiens.
+
+De plus, nous vérifions l'homoscédasticité des résidus. Pour cela nous représentons graphiquement les résidus en fonction des valeurs prédites.
+
+```{r}
+res <- resid(reg)
+plot(data_train$y, res)
+abline(0,0)
+```
+
+Nous observons que la variance est la même quelque soit y. L'hypothèse d'homoscédasticité est donc vérifiée.
+
+### Analyse de la stabilité
+Ensuite, nous cherchons si certaines observations ont une forte influence sur les coefficients de la régression linéaire.
+Deux types de points ont cet effet: ceux à effet de levier et ceux à fort résidu. Pour cela nous calculons la distance de Cook qui mesure l'effet de la suppression d'un point. Les points qui ont une distance de Cook supérieure à 1 sont considérés comme atypique.
+```{r}
+sum(cooks.distance(reg)>1)
+```
+Les données ont toutes des distances de Cook inférieures à 1, il n'y a donc a priori pas de point atypique.
+
+### Calcul de l'erreur par validation croisée
+Ensuite, nous appliquons une régression linéaire sur toutes les variables.
 
 ```{r}
 source('CV.R')
 set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
 res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
-row.names(res) <- c("Régression linéaire")
+row.names(res) <- c("Regression linéaire")
 #res[1,] <- CV_eval(lm, data_train)
 ```
 Nous obtenons l'erreur suivante:
 
 ```{r, echo=FALSE}
 knitr::kable(res)
+```
+
+
+```{r}
+#tracer y_hat en fonction de y por le modèle retenu
 ```
