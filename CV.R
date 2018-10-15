@@ -28,6 +28,11 @@ CV_eval <- function(model, data, fold=10){
       }
       errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
       mean <- mean + (errors[k]*length(pred))
+    }else if(model=='reg_lineaire'){
+      reg <- lm(formula = y~., data=data[folds!=k,])
+      pred <- predict(reg, newdata=data[folds==k,])
+      errors[k] <- sum((data$y[folds==k]-pred)^2) / length(pred)
+      mean <- mean + (errors[k]*length(pred))
     }else{
       stop('Le modèle demandé n\'est pas implémenté!')
     }
@@ -36,3 +41,4 @@ CV_eval <- function(model, data, fold=10){
   sd <- sqrt((1/(K-1))*sum((errors - rep(mean, K))^2))
   return(c(mean, sd))
 }
+
