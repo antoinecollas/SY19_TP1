@@ -8,7 +8,6 @@ output:
 #Problème de classification
 ##Chargement des données
 Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des individus appratiennent à la classe 1. 57% appartiennent à la classe 2. Ce jeu de données contient 200 individus, chacun est décrit par 36 variables.
-
 ```{r}
 full_data <- read.table('../tp3_a18_clas_app.txt')
 nrow(full_data)
@@ -126,7 +125,7 @@ shapiro.test(res)
 ```
 La p-value obtenue est très élevée, 0.824, les résidus sont donc probablement gaussiens.
 Nous pouvons confirmer ce résultat à l'aide d'un diagramme Q-Q des quantiles des résidus standardisés par rapport à ceux d'une loi normale.
-```{r}
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
 plot(reg, which=2)
 ```
 
@@ -134,7 +133,7 @@ La quasi totalité des points sont situés sur la première diagonale, ce qui co
 
 De plus, nous vérifions l'homoscédasticité des résidus. Pour cela nous représentons graphiquement les résidus en fonction des valeurs prédites.
 
-```{r}
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
 res <- resid(reg)
 plot(data_train$y, res)
 abline(0,0)
@@ -181,11 +180,11 @@ yapp <- data_train$y
 ### Ridge
 Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Du fait du terme de pénalisation, ridge (tout comme lasso) nécessite de centrer et réduire les variables (paramètre standardize dans glmnet).
 
-```{r}
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
 library(glmnet)
 res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
 row.names(res) <- c("Ridge")
-cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(0:20), type.measure='mse', nfolds=10, standardize=TRUE)
+cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(-5:20), type.measure='mse', nfolds=10, standardize=TRUE)
 #cv.out$lambda.min
 #cv.out
 hyperparametres <- list(alpha=0, lambda = cv.out$lambda.min)
@@ -203,7 +202,7 @@ L'erreur est très proche de l'erreur de la régression linéaire simple. La pé
 ### Lasso
 Nous commençons par chercher l'hyperparamètre lambda du modèle lasso. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle lasso ainsi que la validation croisée sont implémentés dans le package **glmnet**.
 
-```{r}
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
 res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
 row.names(res) <- c("Lasso")
 cv.out <- cv.glmnet(xapp, yapp, alpha=1, lambda=NULL, type.measure='mse', nfolds=10, standardize=TRUE)
@@ -224,5 +223,5 @@ sum(glmnet.fit$beta==0)
 ```
 
 ```{r}
-#tracer y_hat en fonction de y por le modèle retenu
+#tracer y_hat en fonction de y pour le modèle retenu
 ```
