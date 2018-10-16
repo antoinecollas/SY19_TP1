@@ -171,7 +171,7 @@ knitr::kable(res)
 
 ## Régression linéaire régularisées (ridge et lasso)
 
-Etant le grand nombre de variables (50) pour le faible nombre de d'individus (200), nous cherchons à pénaliser les variables (faire tendre leurs coefficients vers 0) qui ont peu d'effet sur la valeur à prédire. Pour cela nous utilisons les modèles ridge et lasso qui ajoutent des termes de penalisation dans le problème de minimisation des moindres carrés.
+Etant donné le grand nombre de variables (50) pour le faible nombre de d'individus (200), nous cherchons à pénaliser les variables (faire tendre leurs coefficients vers 0) qui ont peu d'effet sur la valeur à prédire. Malgré que la méthode des moindres carrés est optimale sur l'ensemble d'entrainement pour l'erreur quadratique moyenne, nous espérons une diminution de l'erreur de généralisation (en abaissant la variance de notre modèle) en ajoutant des termes de pénalisation. Pour cela nous utilisons les modèles ridge et lasso qui ajoutent des termes de penalisation dans le problème de minimisation des moindres carrés.
 
 ```{r}
 xapp <- model.matrix(y~., data_train)[,2:51]
@@ -217,8 +217,10 @@ plot(cv.out)
 knitr::kable(res)
 ```
 
+La pénalisation LASSO donne un résultat bien meilleur que le résultat simple des moindres carrés. L'erreur moyenne est inférieure tout comme l'écart type. Par ailleurs 17 coefficents sur 50 sont nuls!
 ```{r}
-#graph lasso en fonction de lambda
+glmnet.fit <- glmnet(xapp, yapp, lambda=cv.out$lambda.min, alpha=1, standardize=TRUE)
+sum(glmnet.fit$beta==0)
 ```
 
 ```{r}
