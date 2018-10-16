@@ -2,7 +2,7 @@ require(MASS)
 library(e1071)
 
 #fonction réalisant la validation croisée (avec K=10 par défaut) 
-CV_eval <- function(model, data, fold=10){
+CV_eval <- function(model, data, hyperparameters=c(), fold=10){
   K <- fold
   n <- nrow(data)
   folds <- sample(1:K,n,replace=TRUE)
@@ -28,9 +28,19 @@ CV_eval <- function(model, data, fold=10){
       }
       errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
       mean <- mean + (errors[k]*length(pred))
-    }else if(model=='reg_lineaire'){
-      reg <- lm(formula = y~., data=data[folds!=k,])
-      pred <- predict(reg, newdata=data[folds==k,])
+    }else if((model=='reg_lineaire') || (model=='ridge_lasso')){
+      if (model=='reg_lineaire') {
+        reg <- lm(formula = y~., data=data[folds!=k,])
+        pred <- predict(reg, newdata=data[folds==k,])
+      }else{
+        alpha = hyperparameters$alpha
+        lambda = hyperparameters$lambda
+        xapp <- model.matrix(y~., data[folds!=k,])[,2:51]
+        yapp <- data[folds!=k,]$y
+        reg <- glmnet(xapp,yapp,lambda=cv.out$lambda.min, alpha=alpha, standardize=TRUE)
+        xtst <- model.matrix(y~., data[folds==k,])[,2:51]
+        pred <- predict(reg,s=cv.out$lambda.min,newx=xtst)
+      }
       errors[k] <- sum((data$y[folds==k]-pred)^2) / length(pred)
       mean <- mean + (errors[k]*length(pred))
     }else{

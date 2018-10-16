@@ -179,11 +179,46 @@ yapp <- data_train$y
 ```
 
 ### Ridge
-Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Du fait du terme de pénalisation, ridge (tout comme lasso) nécessite de centrer et réduire les variables (paramètre standardize dans glmnet). 
+Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Du fait du terme de pénalisation, ridge (tout comme lasso) nécessite de centrer et réduire les variables (paramètre standardize dans glmnet).
+
 ```{r}
 library(glmnet)
-cv.out <- cv.glmnet(xapp, yapp, alpha=0, type.measure='mse', nfolds=10, standardize=TRUE)
+res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
+row.names(res) <- c("Ridge")
+cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(0:20), type.measure='mse', nfolds=10, standardize=TRUE)
+#cv.out$lambda.min
+#cv.out
+hyperparametres <- list(alpha=0, lambda = cv.out$lambda.min)
+res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
 plot(cv.out)
+```
+Nous obtenons l'erreur suivante:
+
+```{r, echo=FALSE}
+knitr::kable(res)
+```
+
+L'erreur est très proche de l'erreur de la régression linéaire simple. La pénalisation ridge n'améliore pas la performance de notre modèle.
+
+### Lasso
+Nous commençons par chercher l'hyperparamètre lambda du modèle lasso. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle lasso ainsi que la validation croisée sont implémentés dans le package **glmnet**.
+
+```{r}
+res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
+row.names(res) <- c("Lasso")
+cv.out <- cv.glmnet(xapp, yapp, alpha=1, lambda=NULL, type.measure='mse', nfolds=10, standardize=TRUE)
+#cv.out$lambda.min
+#cv.out
+hyperparametres <- list(alpha=1, lambda=cv.out$lambda.min)
+res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
+plot(cv.out)
+```
+```{r, echo=FALSE}
+knitr::kable(res)
+```
+
+```{r}
+#graph lasso en fonction de lambda
 ```
 
 ```{r}
