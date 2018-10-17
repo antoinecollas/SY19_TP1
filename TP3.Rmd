@@ -185,8 +185,6 @@ library(glmnet)
 res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
 row.names(res) <- c("Ridge")
 cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(-5:20), type.measure='mse', nfolds=10, standardize=TRUE)
-#cv.out$lambda.min
-#cv.out
 hyperparametres <- list(alpha=0, lambda = cv.out$lambda.min)
 res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
 plot(cv.out)
@@ -206,8 +204,6 @@ Nous commençons par chercher l'hyperparamètre lambda du modèle lasso. Nous le
 res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
 row.names(res) <- c("Lasso")
 cv.out <- cv.glmnet(xapp, yapp, alpha=1, lambda=NULL, type.measure='mse', nfolds=10, standardize=TRUE)
-#cv.out$lambda.min
-#cv.out
 hyperparametres <- list(alpha=1, lambda=cv.out$lambda.min)
 res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
 plot(cv.out)
@@ -216,7 +212,7 @@ plot(cv.out)
 knitr::kable(res)
 ```
 
-La pénalisation LASSO donne un résultat bien meilleur que le résultat simple des moindres carrés. L'erreur moyenne est inférieure tout comme l'écart type. Par ailleurs 17 coefficents sur 50 sont nuls!
+La pénalisation LASSO donne un résultat bien meilleur que le résultat simple des moindres carrés. L'erreur moyenne est inférieure tout comme l'écart type. Par ailleurs 17 coefficients sur 50 sont nuls!
 ```{r}
 glmnet.fit <- glmnet(xapp, yapp, lambda=cv.out$lambda.min, alpha=1, standardize=TRUE)
 sum(glmnet.fit$beta==0)
