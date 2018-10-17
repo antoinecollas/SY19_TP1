@@ -10,6 +10,7 @@ output:
 Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des individus appratiennent à la classe 1. 57% appartiennent à la classe 2. Ce jeu de données contient 200 individus, chacun est décrit par 36 variables.
 ```{r}
 full_data <- read.table('../tp3_a18_clas_app.txt')
+ncol(full_data)
 nrow(full_data)
 sum(full_data[,-1]==1) / nrow(full_data)
 sum(full_data[,-1]==2) / nrow(full_data)
@@ -35,7 +36,7 @@ Nous avons implémenté une fonction qui calcule l'erreur de classification et l
 source('CV.R')
 ```
 
-##Analyse discriminante (linéaire, quadratique et classifieur bayésien naïf).
+##Analyses discriminantes (linéaire, quadratique et classifieur bayésien naïf).
 Nous commençons par utiliser les analyses discriminantes linéaire et quadratique ainsi que le classifieur bayésien naif.
 ```{r}
 set.seed(123)
@@ -50,17 +51,6 @@ Nous obtenons les erreurs suivantes:
 
 ```{r, echo=FALSE}
 knitr::kable(res)
-```
-
-## Analyse discriminante régularisée
-Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation du package **klaR** cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
-
-```{r}
-require(klaR)
-set.seed(123)
-model <- rda(formula=as.factor(y)~., data=data_train, crossval=TRUE, fold=10)
-model$regularization
-model$error.rate[2]
 ```
 
 ## Régression logistique
@@ -79,6 +69,43 @@ Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
+
+## Analyse discriminante régularisée
+Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation du package **klaR** cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
+
+```{r}
+require(klaR)
+set.seed(123)
+model <- rda(formula=as.factor(y)~., data=data_train, crossval=TRUE, fold=10)
+model$regularization
+model$error.rate[2]
+```
+
+## Selection de variables: Analyse en composante principale
+Une deuxième méthode de régulariser nos modèles (ADL, ADQ, regression logistique) est de les entrainer avec un sous ensemble de variables. En réduisant la dimensionnalité en entrée, nous réduisons fortement le nombre de paramètres (réduction quadratique pour ADL et ADQ) tout en essayant de conserver un maximum de l'information initiale. Pour cela nous utilisons une analyse en composantes principales.
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
+set.seed(123)
+pca <- princomp(formula=~.-y, data=data_train)
+Z <- pca$scores
+lambda <- pca$sdev^2
+plot(cumsum(lambda)/sum(lambda),type="l",xlab="M", ylab="proportion of explained variance")
+```
+```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
+res <- data.frame("Erreur ADQ"=rep(0,ncol(Z)), "Ecart type ADQ"=rep(0,ncol(Z)), "Erreur naif bayésien"=rep(0,ncol(Z)), "Ecart type naif bayésien"=rep(0,ncol(Z)))
+row.names(res) <- 1:ncol(Z)
+for (i in 1:ncol(Z)){
+  data_train_pca <- data.frame(cbind(Z[,1:i], data.frame(data_train$y)))
+  colnames(data_train_pca) <- c(colnames(data_train)[1:i], colnames(data_train)[ncol(data_train)])
+  res[i,] <- c(CV_eval('adq', data = data_train_pca), CV_eval('bayesien_naif', data = data_train_pca))
+}
+plot(1:ncol(Z), res[,1],type='o', pch='o', xlab='Nombre de variables', ylab='Erreur', lty=1, col='blue')
+points(1:ncol(Z), res[,3], pch='+', col='red')
+lines(1:ncol(Z), res[,3], lty=2, col='red')
+legend('topleft', legend=c('adq','bayesien naif'), col=c('blue','red'), pch=c('o','+'), lty=c(1,2), ncol=1)
+```
+Nous observons que les 5 premières composantes principales ne contiennent que 20% de la variance totale des données. Cependant, conserver seulement ces 5 premières composantes permet de réduire fortement l'erreur de l'analyse discriminante quadratique (de 36% à 10%). Le classifieur bayésien naif profite moins de la baisse du nombre de variables du fait de son faible nombre de paramètres même avec beaucoup de variables.
+
+
 ```{r}
 #Extraction des prédicteurs intéressants (Factor discriminant analysis, PCA, corrélations, corrélations fournies pas la régression logistique, ...)
 ```
@@ -177,42 +204,30 @@ xapp <- model.matrix(y~., data_train)[,2:51]
 yapp <- data_train$y
 ```
 
-### Ridge
-Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Du fait du terme de pénalisation, ridge (tout comme lasso) nécessite de centrer et réduire les variables (paramètre standardize dans glmnet).
+### Ridge et LASSO
+Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Ensuite nous cherchons l'hyperparamètre lambda du modèle lasso. Nous procédons de la même manière que pour ridge. Du fait du terme de pénalisation, ridge et lasso nécessitent de centrer et réduire les variables (paramètre standardize dans glmnet).
 
-```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
+```{r, fig.height = 3, fig.width = 7, fig.align = "center"}
 library(glmnet)
-res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
-row.names(res) <- c("Ridge")
+res <- data.frame("Erreur"=rep(0,2), "Ecart type"=rep(0,2))
+row.names(res) <- c("Ridge", "LASSO")
 cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(-5:20), type.measure='mse', nfolds=10, standardize=TRUE)
 hyperparametres <- list(alpha=0, lambda = cv.out$lambda.min)
 res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
-plot(cv.out)
-```
-Nous obtenons l'erreur suivante:
-
-```{r, echo=FALSE}
-knitr::kable(res)
-```
-
-L'erreur est très proche de l'erreur de la régression linéaire simple. La pénalisation ridge n'améliore pas la performance de notre modèle.
-
-### Lasso
-Nous commençons par chercher l'hyperparamètre lambda du modèle lasso. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle lasso ainsi que la validation croisée sont implémentés dans le package **glmnet**.
-
-```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
-res <- data.frame("Erreur"=rep(0,1), "Ecart type"=rep(0,1))
-row.names(res) <- c("Lasso")
+par(mfrow=c(1,2))
+plot(cv.out, main="Ridge")
 cv.out <- cv.glmnet(xapp, yapp, alpha=1, lambda=NULL, type.measure='mse', nfolds=10, standardize=TRUE)
 hyperparametres <- list(alpha=1, lambda=cv.out$lambda.min)
-res[1,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
-plot(cv.out)
+res[2,] <- CV_eval('ridge_lasso', data_train, hyperparametres)
+plot(cv.out, main='LASSO')
 ```
+Nous obtenons les erreurs minimales suivantes:
+
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
 
-La pénalisation LASSO donne un résultat bien meilleur que le résultat simple des moindres carrés. L'erreur moyenne est inférieure tout comme l'écart type. Par ailleurs 17 coefficients sur 50 sont nuls!
+L'erreur en utilisant la pénalisation Ridge est très proche de l'erreur de la régression linéaire simple. Cependant, la pénalisation LASSO donne un résultat bien meilleur que le résultat simple des moindres carrés. L'erreur moyenne est inférieure tout comme l'écart type. Par ailleurs 17 coefficients sur 50 sont nuls en utilisant la pénalisation LASSO!
 ```{r}
 glmnet.fit <- glmnet(xapp, yapp, lambda=cv.out$lambda.min, alpha=1, standardize=TRUE)
 sum(glmnet.fit$beta==0)
