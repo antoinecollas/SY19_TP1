@@ -10,10 +10,16 @@ output:
 Nous commençons par charger les données du problème de classification. Ce problème de classification ne possède que 2 classes. 43% des individus appratiennent à la classe 1. 57% appartiennent à la classe 2. Ce jeu de données contient 200 individus, chacun est décrit par 36 variables.
 ```{r}
 full_data <- read.table('../tp3_a18_clas_app.txt')
-ncol(full_data)
-nrow(full_data)
-sum(full_data[,-1]==1) / nrow(full_data)
-sum(full_data[,-1]==2) / nrow(full_data)
+```
+```{r, echo=FALSE}
+full_data <- read.table('../tp3_a18_clas_app.txt')
+stat <- data.frame(c(ncol(full_data),nrow(full_data),sum(full_data[,-1]==1)/nrow(full_data),sum(full_data[,-1]==2)/nrow(full_data)))
+row.names(stat)<-c("Nombre de variables", "Nombre de données", "Données classe 1", "Données classe 2")
+colnames(stat) <- NULL
+```
+
+```{r, echo=FALSE}
+knitr::kable(stat)
 ```
 
 
@@ -31,27 +37,31 @@ data_test <- full_data[-train,]
 Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous calculons l'erreur moyenne et l'écart type. Nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
 
 ##Validation croisée
-Nous avons implémenté une fonction qui calcule l'erreur de classification et l'écart type par validation croisée pour l'ensemble des modèles que nous utiliserons par la suite.
-```{r}
+Nous avons implémenté une fonction qui calcule l'erreur de classification et l'écart type par validation croisée pour l'ensemble des modèles que nous utiliserons par la suite, et les calcules aussi pour le modèle utilisant le meilleur sous-ensemble de prédicteur à chaque étape de la validation croisée.
+```{r, include=FALSE}
+source('CV2.R')
+```
+
+```{r, include=FALSE}
 source('CV.R')
 ```
 
-##Analyses discriminantes (linéaire, quadratique et classifieur bayésien naïf).
-Nous commençons par utiliser les analyses discriminantes linéaire et quadratique ainsi que le classifieur bayésien naif.
+##Analyses discriminantes (linéaire, quadratique, k-plus proches voisins et classifieur bayésien naïf).
+Nous commençons par utiliser les analyses discriminantes linéaire et quadratique, la méthode des k-plus proches voisins ainsi que le classifieur bayésien naif.
 ```{r}
 set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
-res <- data.frame("Erreur"=rep(0,3), "Ecart type"=rep(0,3))
-row.names(res) <- c("ADL", "ADQ", "Bayésien naif")
-res[1,] <- CV_eval('adl', data_train) #analyse discriminantes linéaire
-res[2,] <- CV_eval('adq', data_train) #analyse discriminantes quadratique
-res[3,] <- CV_eval('bayesien_naif', data_train)
+res <- CV_eval2(c('adl','adq','bayesien_naif', 'knn'), data_train)
+colnames(res) <- c("Erreur", "Ecart type")
+row.names(res) <- c("ADL", "ADL avec subset", "ADQ", "ADQ avec subset", "Bayésien naif", "Bayésien naif avec subset", "KNN", "KNN avec subset")
 ```
 Nous obtenons les erreurs suivantes:
 
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
+
+Dans le cas de la méthode des k-plus proches voisins, l'erreur et l'écart type correspondent à ceux dont le nombre de voisin k minimise au maximum l'érreur.
 
 ## Régression logistique
 Nous testons la régression logistique bien que ce modèle soit similaire à l'analyse discriminante linéaire (qui ne diffère que par l'évaluation des poids).
@@ -61,9 +71,9 @@ set.seed(123)
 #validation croisée sur l'ensemble d'entrainement avec une régression logistique
 data_train_glm <- data_train
 data_train_glm$y <- data_train_glm$y - 1
-res <- data.frame("Erreur"=0, "Ecart type"=0)
-row.names(res) <- "Regression logistique"
-res[1,] <- suppressWarnings(CV_eval('reg_logistique', data_train_glm))
+res <- suppressWarnings(CV_eval2(c('reg_logistique'), data_train_glm))
+colnames(res) <- c("Erreur", "Ecart type")
+row.names(res) <- c("Logistique", "Logistique avec subset")
 ```
 Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
