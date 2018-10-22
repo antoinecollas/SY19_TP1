@@ -1,5 +1,7 @@
 ---
 title: "TP3"
+geometry:
+  margin=2cm
 output:
   pdf_document: default
   html_notebook: default
@@ -107,8 +109,11 @@ Nous obtenons l'erreur minimale de 23% pour K=5.
 ## Analyse discriminante régularisée
 Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation du package **klaR** cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
 
-```{r}
+```{r, include=FALSE}
 require(klaR)
+```
+
+```{r}
 set.seed(123)
 model <- rda(formula=as.factor(y)~., data=data_train, crossval=TRUE, fold=10)
 model$regularization
@@ -154,14 +159,16 @@ legend('topleft', legend=c('adq','bayesien naif', 'knn'), col=c('blue','red', 'g
 ```
 Nous observons que les 5 premières composantes principales ne contiennent que 20% de la variance totale des données. Cependant, conserver seulement ces 5 premières composantes permet de réduire fortement l'erreur de l'analyse discriminante quadratique (de 36% à 10%). Pour les K plus proches voisins, nous cherchons pour chaque sous ensemble de composantes principales le K minimisant l'erreur de validation croisée. L'erreur passe de 23% à moins de 10% en ne conservant que les 4 premières composantes principales. Le classifieur bayésien naif profite moins de la baisse du nombre de variables du fait de son faible nombre de paramètres même avec beaucoup de variables.
 
-## Selection de variables: Backward
-
+## Sélection de variables: Sélection rétrograde pas à pas
+Enfin, une autre méthode pour régulariser nos modèles est de selectionner parmis les modèles formés de sous-ensembles de prédicteurs, un modèle plus simple que le modèle complet, et dont l'indicateur de performance possède une bonne valeur. L'indicateur que nous avont choisi ici est le BIC (Bayesian Information Criterion ou Critère d'Information Bayésien) et le but est de trouver le sous-ensemble de prédicteurs qui réalise son minimum. Le calcul de ces sous-ensembles se fait ici avec la méthode rétrograde, car énumérer tous les sous-ensembles de 36 prédicteurs est trop coûteux (2^36). Celle-ci n'évalue que 1+36*37/2 = 667 modèles en retirant à chaque étape le prédicteur le moins significatif.
+Pour obtenir des résultats plus stables, ce calcul de sous-ensemble performant de prédicteur est effectué au sein d'une validation croisée, et ensuite le modèle désiré (par exemple l'Analyse Discriminante Linéaire) est appris avec le meilleur sous-ensemble de prédicteur pour cette étape de la validation croisée.
+La fonction CV_eval2 réalise cette méthodologie pour un ensemble de models passé en argument pour un ensemble d'apprentissage et retourne l'erreur moyenne et l'écart type.
 ```{r}
 set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
-res <- CV_eval2(c('adl','adq','bayesien_naif', 'knn'), data_train)
+res <- CV_eval2(c('adl','adq','bayesien_naif'), data_train)
 colnames(res) <- c("Erreur", "Ecart type")
-row.names(res) <- c("ADL", "ADQ", "Bayesien naif", "KNN")
+row.names(res) <- c("ADL", "ADQ", "Bayesien naif")
 ```
 Nous obtenons les erreurs suivantes:
 
@@ -171,6 +178,28 @@ knitr::kable(res)
 
 ```{r}
 
+```
+
+## Modèle retenu
+Nous choisissons le modèle Bayesien naif avec le meilleur sous-ensemble de prédicteur comme définit dans la partie sélection rétrograde pas à pas. En effet elle possède la plus petite erreur moyenne que l'on ait trouvé, à égalité avec le modèle Bayesien naif avec tous les prédicteurs, mais cette dernière possède un écart-type plus grand, ce qui signifie que le modèle est plus variable que l'autre. Il est donc préférable de choisir le modèle avec la plus petite variance, le modèle avec le sous-ensemble de prédicteurs. Nous évaluons l'erreur sur l'ensemble de test (réservé à cet effet au départ): cette erreur nous donne une estimation non biaisée.
+
+```{r}
+sub <- regsubsets(y~.,data=data_train,method='backward');
+a <- summary(sub);
+coefs <- coef(sub, which.min(a$bic))
+colnames <- names(coefs)
+colnames <- colnames[colnames != "(Intercept)"]
+formula <- as.formula(paste("y ~ ", paste(colnames, collapse = " + ")))
+data_train[,37] <- as.factor(data_train[,37])
+data_test[,37] <- as.factor(data_test[,37])
+class.mod <- naiveBayes(formula, data_train)
+pred <- predict(class.mod, data_test)
+error <- sum(data_test$y!=pred) / length(pred)
+error
+```
+
+```{r, include=FALSE}
+#save(class.mod, file="env_regresseur.RData")
 ```
 
 # Problème de régression
@@ -264,9 +293,11 @@ yapp <- data_train$y
 
 ### Ridge et LASSO
 Nous commençons par chercher l'hyperparamètre lambda du modèle ridge. Nous le cherchons à l'aide d'une validation croisée sur l'ensemble d'entrainement. Le modèle ridge ainsi que la validation croisée sont implémentés dans le package **glmnet**. Ensuite nous cherchons l'hyperparamètre lambda du modèle lasso. Nous procédons de la même manière que pour ridge. Du fait du terme de pénalisation, ridge et lasso nécessitent de centrer et réduire les variables (paramètre standardize dans glmnet).
+```{r, include=FALSE}
+library(glmnet)
+```
 
 ```{r, fig.height = 3, fig.width = 7, fig.align = "center"}
-library(glmnet)
 res <- data.frame("Erreur"=rep(0,2), "Ecart type"=rep(0,2))
 row.names(res) <- c("Ridge", "LASSO")
 cv.out <- cv.glmnet(xapp, yapp, alpha=0, lambda=exp(-5:20), type.measure='mse', nfolds=10, standardize=TRUE)
@@ -307,7 +338,7 @@ full_dataset <- rbind(data_train, data_test)
 xapp <- model.matrix(y~., full_dataset)[,2:51]
 yapp <- full_dataset$y
 reg <- glmnet(xapp, yapp, lambda=lambda, alpha=1, standardize=TRUE)
-#save(reg, file="env_regresseur.RData")
+#save(class.mod, reg, file="env.RData")
 ```
 
 ```{r, echo=FALSE}
