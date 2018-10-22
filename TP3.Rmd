@@ -193,13 +193,13 @@ formula <- as.formula(paste("y ~ ", paste(colnames, collapse = " + ")))
 data_train[,37] <- as.factor(data_train[,37])
 data_test[,37] <- as.factor(data_test[,37])
 class.mod <- naiveBayes(formula, data_train)
-pred <- predict(class.mod, data_test)
+pred <- predict(class.mod, data_test[,1:36])
 error <- sum(data_test$y!=pred) / length(pred)
 error
 ```
 
 ```{r, include=FALSE}
-#save(class.mod, file="env_regresseur.RData")
+#save(class.mod, file="env_classifieur.RData")
 ```
 
 # Problème de régression
@@ -338,6 +338,13 @@ full_dataset <- rbind(data_train, data_test)
 xapp <- model.matrix(y~., full_dataset)[,2:51]
 yapp <- full_dataset$y
 reg <- glmnet(xapp, yapp, lambda=lambda, alpha=1, standardize=TRUE)
+#save(reg, file="env_regresseur.RData")
+```
+
+```{r}
+#rm(list=ls())
+#load(file="env_classifieur.RData")
+#load(file="env_regresseur.RData")
 #save(class.mod, reg, file="env.RData")
 ```
 
@@ -345,11 +352,24 @@ reg <- glmnet(xapp, yapp, lambda=lambda, alpha=1, standardize=TRUE)
 #essai pour vérifier la fonction regresseur (l'erreur est totalement biaisée bien sur)
 rm(list=ls())
 source('predicteurs.R')
-load(file="env_regresseur.RData")
+load(file="env.RData")
 full_data <- read.table('../tp3_a18_reg_app.txt')
 xtst <- full_data[,1:50]
 ytst <- full_data[,51]
 pred <- regresseur(xtst)
 erreur <- sum((pred-ytst)^2)/length(pred)
+#erreur
+```
+
+```{r, echo=FALSE}
+#essai pour vérifier la fonction regresseur (l'erreur est totalement biaisée bien sur)
+rm(list=ls())
+source('predicteurs.R')
+load(file="env.RData")
+full_data <- read.table('../tp3_a18_clas_app.txt')
+xtst <- full_data[,1:36]
+ytst <- full_data[,37]
+pred <- classifieur(xtst)
+erreur <- sum(ytst!=pred) / length(pred)
 #erreur
 ```
