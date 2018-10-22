@@ -47,9 +47,9 @@ CV_eval <- function(model, data, hyperparameters=c(), fold=10){
         lambda = hyperparameters$lambda
         xapp <- model.matrix(y~., data[folds!=k,])[,2:51]
         yapp <- data[folds!=k,]$y
-        reg <- glmnet(xapp,yapp,lambda=cv.out$lambda.min, alpha=alpha, standardize=TRUE)
+        reg <- glmnet(xapp,yapp,lambda=lambda, alpha=alpha, standardize=TRUE)
         xtst <- model.matrix(y~., data[folds==k,])[,2:51]
-        pred <- predict(reg,s=cv.out$lambda.min,newx=xtst)
+        pred <- predict(reg,newx=xtst)
       }
       errors[k] <- sum((data$y[folds==k]-pred)^2) / length(pred)
       mean <- mean + (errors[k]*length(pred))
