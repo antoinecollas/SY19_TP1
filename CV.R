@@ -28,6 +28,16 @@ CV_eval <- function(model, data, hyperparameters=c(), fold=10){
       }
       errors[k] <- sum(data$y[folds==k]!=pred) / length(pred)
       mean <- mean + (errors[k]*length(pred))
+    }else if (model=='knn'){
+      neigh <- hyperparameters$K
+      train <- data[folds!=k,]
+      train$y <- NULL 
+      cl <- as.factor(data[folds!=k,]$y)
+      test <- data[folds==k,]
+      test$y <- NULL
+      model.pred <- knn(train=data[folds!=k,], test=data[folds==k,], cl=cl, k=neigh)
+      errors[k] <- sum(data$y[folds==k]!=model.pred) / length(model.pred)
+      mean <- mean + (errors[k]*length(model.pred))
     }else if((model=='reg_lineaire') || (model=='ridge_lasso')){
       if (model=='reg_lineaire') {
         reg <- lm(formula = y~., data=data[folds!=k,])

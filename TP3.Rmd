@@ -37,7 +37,7 @@ data_test <- full_data[-train,]
 Nous évaluons chaque modèle sur l'ensemble d'entrainement à l'aide d'une validation croisée (avec 10 parties). Nous calculons l'erreur moyenne et l'écart type. Nous appliquons la "One-standard-error rule" pour choisir notre modèle final. Enfin, nous estimons l'erreur de notre modèle sur l'ensemble de test. L'erreur de classification est définie par la probabilité d’erreur.
 
 ##Validation croisée
-Nous avons implémenté une fonction qui calcule l'erreur de classification et l'écart type par validation croisée pour l'ensemble des modèles que nous utiliserons par la suite, et les calcules aussi pour le modèle utilisant le meilleur sous-ensemble de prédicteur à chaque étape de la validation croisée.
+Nous avons implémenté une fonction qui calcule l'erreur de classification et l'écart type par validation croisée pour l'ensemble des modèles que nous utiliserons par la suite. 
 ```{r, include=FALSE}
 source('CV2.R')
 ```
@@ -46,22 +46,22 @@ source('CV2.R')
 source('CV.R')
 ```
 
-##Analyses discriminantes (linéaire, quadratique, k-plus proches voisins et classifieur bayésien naïf).
-Nous commençons par utiliser les analyses discriminantes linéaire et quadratique, la méthode des k-plus proches voisins ainsi que le classifieur bayésien naif.
+##Analyses discriminantes (linéaire, quadratique, et classifieur bayésien naïf).
+Nous commençons par utiliser les analyses discriminantes linéaire et quadratique, ainsi que le classifieur bayésien naif.
 ```{r}
 set.seed(123)
 #validation croisée sur l'ensemble d'entrainement
-res <- CV_eval2(c('adl','adq','bayesien_naif', 'knn'), data_train)
-colnames(res) <- c("Erreur", "Ecart type")
-row.names(res) <- c("ADL", "ADL avec subset", "ADQ", "ADQ avec subset", "Bayésien naif", "Bayésien naif avec subset", "KNN", "KNN avec subset")
+res <- data.frame("Erreur"=rep(0,3), "Ecart type"=rep(0,3))
+row.names(res) <- c("ADL", "ADQ", "Bayésien naif")
+res[1,] <- CV_eval('adl', data_train) #analyse discriminantes linéaire
+res[2,] <- CV_eval('adq', data_train) #analyse discriminantes quadratique
+res[3,] <- CV_eval('bayesien_naif', data_train)
 ```
 Nous obtenons les erreurs suivantes:
 
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
-
-Dans le cas de la méthode des k-plus proches voisins, l'erreur et l'écart type correspondent à ceux dont le nombre de voisin k minimise au maximum l'érreur.
 
 ## Régression logistique
 Nous testons la régression logistique bien que ce modèle soit similaire à l'analyse discriminante linéaire (qui ne diffère que par l'évaluation des poids).
@@ -71,14 +71,38 @@ set.seed(123)
 #validation croisée sur l'ensemble d'entrainement avec une régression logistique
 data_train_glm <- data_train
 data_train_glm$y <- data_train_glm$y - 1
-res <- suppressWarnings(CV_eval2(c('reg_logistique'), data_train_glm))
-colnames(res) <- c("Erreur", "Ecart type")
-row.names(res) <- c("Logistique", "Logistique avec subset")
+res <- data.frame("Erreur"=0, "Ecart type"=0)
+row.names(res) <- "Regression logistique"
+res[1,] <- suppressWarnings(CV_eval('reg_logistique', data_train_glm))
 ```
 Comme attendu, nous obtenons une erreur très proche de ADL:
 ```{r, echo=FALSE}
 knitr::kable(res)
 ```
+
+## K plus proches voisins
+Nous testons les K plus proches voisins. Pour cela nous devons chercher le meilleur K, c'est à dire le K pour lequel notre erreur de validation croisée est minimale. Nous évaluons les valeurs de K entre 1 et 100.
+
+```{r}
+set.seed(123)
+row.names(res) <- "KNN"
+res[1,1] <- 1
+for (k in 1:100){
+  hyperparametres <- list(K=k)
+  temp <- CV_eval('knn', data_train, hyperparametres)
+  if(temp[1]<res[1]){
+    k_min <- k
+    res[1,1] <- temp[1]
+    res[1,2] <- temp[2]
+  }
+}
+```
+
+```{r, echo=FALSE}
+knitr::kable(res)
+```
+
+Nous obtenons l'erreur minimale de 23% pour K=5.
 
 ## Analyse discriminante régularisée
 Dans cette partie nous utilisons une analyse discriminante régularisée implémentée dans le package **klaR**. Cette implémentation permet d'obtenir des modèles régularisés de l'analyse disciminante linéaire, de l'analyse discriminante quadratique et du classifieur bayésien naïf. L'impléméntation du package **klaR** cherche les hyperparamètres $\gamma$ et $\lambda$ à l'aide d'une validation croisée sur l'ensemble d'entrainement. Les hyperparamètres optimaux trouvés sont $\gamma=0.86$ et $\lambda=0.04$. D'après la [documentation du package klaR](https://cran.r-project.org/web/packages/klaR/klaR.pdf) (page 58), cela correspond à des matrices de variances-covariances dont les termes de chaque diagonale sont quasiement égaux et les éléments en dehors de la diagonale sont proches de 0. Ce classifieur correspond à un classifieur bayésien naïf régularisé (par les termes des diagonales de matrices de variances-covariances égaux). L'erreur trouvée est proche de celle trouvée du classifieur bayésien naïf.
@@ -92,37 +116,61 @@ model$error.rate[2]
 ```
 
 ## Selection de variables: Analyse en composante principale
-Une deuxième méthode de régulariser nos modèles (ADL, ADQ, regression logistique) est de les entrainer avec un sous ensemble de variables. En réduisant la dimensionnalité en entrée, nous réduisons fortement le nombre de paramètres (réduction quadratique pour ADL et ADQ) tout en essayant de conserver un maximum de l'information initiale. Pour cela nous utilisons une analyse en composantes principales.
+Une deuxième méthode pour régulariser nos modèles est de les entrainer avec un sous ensemble de variables. En réduisant la dimensionnalité en entrée, nous réduisons fortement le nombre de paramètres (réduction quadratique pour ADL et ADQ) tout en essayant de conserver un maximum de l'information initiale. Pour cela nous utilisons une analyse en composantes principales.
 ```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
 set.seed(123)
 pca <- princomp(formula=~.-y, data=data_train)
 Z <- pca$scores
 lambda <- pca$sdev^2
-plot(cumsum(lambda)/sum(lambda),type="l",xlab="M", ylab="proportion of explained variance")
+plot(cumsum(lambda)/sum(lambda),type="l",xlab="Nombre de composantes principales", ylab="Proportion variance")
 ```
-```{r, fig.height = 3, fig.width = 5, fig.align = "center"}
-res <- data.frame("Erreur ADQ"=rep(0,ncol(Z)), "Ecart type ADQ"=rep(0,ncol(Z)), "Erreur naif bayésien"=rep(0,ncol(Z)), "Ecart type naif bayésien"=rep(0,ncol(Z)))
+
+Ensuite, evaluons l'erreur par validation croisée en utilisant des sous ensembles des composantes principales. Nous choisissons d'abord la première composante principale puis ajoutons la deuxième, etc... Nous traçons l'erreur en fonction du nombre de composantes principales utilisées:
+```{r, fig.height = 3, fig.width = 5, fig.align = "center", echo=FALSE}
+res <- data.frame("Erreur ADQ"=rep(0,ncol(Z)), "Ecart type ADQ"=rep(0,ncol(Z)), "Erreur naif bayésien"=rep(0,ncol(Z)), "Ecart type naif bayésien"=rep(0,ncol(Z)), "Erreur KNN"=rep(0,ncol(Z)), "Ecart type KKN"=rep(0,ncol(Z)))
 row.names(res) <- 1:ncol(Z)
 for (i in 1:ncol(Z)){
   data_train_pca <- data.frame(cbind(Z[,1:i], data.frame(data_train$y)))
   colnames(data_train_pca) <- c(colnames(data_train)[1:i], colnames(data_train)[ncol(data_train)])
-  res[i,] <- c(CV_eval('adq', data = data_train_pca), CV_eval('bayesien_naif', data = data_train_pca))
+  #knn
+  temp_knn <- c(1, 1)
+  for (k in 1:50){
+    hyperparametres <- list(K=k)
+    temp <- CV_eval('knn', data_train_pca, hyperparametres)
+    if(temp[1]<temp_knn[1]){
+      k_min <- k
+      temp_knn[1] <- temp[1]
+      temp_knn[2] <- temp[2]
+    }
+  }
+  res[i,] <- c(CV_eval('adq', data = data_train_pca), CV_eval('bayesien_naif', data = data_train_pca), temp_knn)
 }
 plot(1:ncol(Z), res[,1],type='o', pch='o', xlab='Nombre de variables', ylab='Erreur', lty=1, col='blue')
 points(1:ncol(Z), res[,3], pch='+', col='red')
 lines(1:ncol(Z), res[,3], lty=2, col='red')
-legend('topleft', legend=c('adq','bayesien naif'), col=c('blue','red'), pch=c('o','+'), lty=c(1,2), ncol=1)
+points(1:ncol(Z), res[,5], pch='*', col='green')
+lines(1:ncol(Z), res[,5], lty=3, col='green')
+legend('topleft', legend=c('adq','bayesien naif', 'knn'), col=c('blue','red', 'green'), pch=c('o','+', '*'), lty=c(1,2,3), ncol=1)
 ```
-Nous observons que les 5 premières composantes principales ne contiennent que 20% de la variance totale des données. Cependant, conserver seulement ces 5 premières composantes permet de réduire fortement l'erreur de l'analyse discriminante quadratique (de 36% à 10%). Le classifieur bayésien naif profite moins de la baisse du nombre de variables du fait de son faible nombre de paramètres même avec beaucoup de variables.
+Nous observons que les 5 premières composantes principales ne contiennent que 20% de la variance totale des données. Cependant, conserver seulement ces 5 premières composantes permet de réduire fortement l'erreur de l'analyse discriminante quadratique (de 36% à 10%). Pour les K plus proches voisins, nous cherchons pour chaque sous ensemble de composantes principales le K minimisant l'erreur de validation croisée. L'erreur passe de 23% à moins de 10% en ne conservant que les 4 premières composantes principales. Le classifieur bayésien naif profite moins de la baisse du nombre de variables du fait de son faible nombre de paramètres même avec beaucoup de variables.
 
+## Selection de variables: Backward
 
 ```{r}
-#Extraction des prédicteurs intéressants (Factor discriminant analysis, PCA, corrélations, corrélations fournies pas la régression logistique, ...)
+set.seed(123)
+#validation croisée sur l'ensemble d'entrainement
+res <- CV_eval2(c('adl','adq','bayesien_naif', 'knn'), data_train)
+colnames(res) <- c("Erreur", "Ecart type")
+row.names(res) <- c("ADL", "ADQ", "Bayesien naif", "KNN")
+```
+Nous obtenons les erreurs suivantes:
+
+```{r, echo=FALSE}
+knitr::kable(res)
 ```
 
 ```{r}
-#ROC des différents modèles
-#matrice de confusion du meilleur modèle
+# meilleur modèle
 ```
 
 # Problème de régression
