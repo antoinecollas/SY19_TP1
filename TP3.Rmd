@@ -295,5 +295,30 @@ sum(glmnet.fit$beta==0)
 Nous choisissons la méthode LASSO qui donne la plus faible erreur. Nous récupérons le meilleur lambda déterminé par validation croisée puis apprenons sur les données d'entrainement. Nous évaluons l'erreur sur l'ensemble de test (réservé à cet effet au départ): cette erreur nous donne une estimation non biaisée.
 ```{r}
 lambda <- cv.out$lambda.min
-glmnet(xapp, yapp, alpha=1, lambda=NULL, type.measure='mse', nfolds=10, standardize=TRUE)
+reg <- glmnet(xapp, yapp, lambda=lambda, alpha=1, standardize=TRUE)
+xtst <- model.matrix(y~., data_test)[,2:51]
+pred <- predict(reg, newx=xtst)
+erreur <- sum((pred-data_test$y)^2)/length(pred)
+erreur
+```
+```{r, echo=FALSE}
+xapp <- model.matrix(y~., data_train)[,2:51]
+full_dataset <- rbind(data_train, data_test)
+xapp <- model.matrix(y~., full_dataset)[,2:51]
+yapp <- full_dataset$y
+reg <- glmnet(xapp, yapp, lambda=lambda, alpha=1, standardize=TRUE)
+#save(reg, file="env_regresseur.RData")
+```
+
+```{r, echo=FALSE}
+#essai pour vérifier la fonction regresseur (l'erreur est totalement biaisée bien sur)
+rm(list=ls())
+source('predicteurs.R')
+load(file="env_regresseur.RData")
+full_data <- read.table('../tp3_a18_reg_app.txt')
+xtst <- full_data[,1:50]
+ytst <- full_data[,51]
+pred <- regresseur(xtst)
+erreur <- sum((pred-ytst)^2)/length(pred)
+erreur
 ```
