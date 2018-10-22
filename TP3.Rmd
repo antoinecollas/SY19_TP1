@@ -320,5 +320,5 @@ xtst <- full_data[,1:50]
 ytst <- full_data[,51]
 pred <- regresseur(xtst)
 erreur <- sum((pred-ytst)^2)/length(pred)
-erreur
+#erreur
 ```
